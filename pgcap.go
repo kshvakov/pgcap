@@ -98,7 +98,7 @@ func main() {
 
 					queryTime := packet.Metadata().Timestamp.Sub(query.start)
 
-					if *slowQueryTime == 0 || queryTime.Nanoseconds()/1000000 > *slowQueryTime {
+					if *slowQueryTime == 0 || queryTime.Nanoseconds() > *slowQueryTime*1000000 {
 
 						fmt.Printf("-[ QUERY %f s]-:\n%s\n\n\n", queryTime.Seconds(), query.query)
 					}
