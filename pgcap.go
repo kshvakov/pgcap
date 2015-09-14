@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"github.com/google/gopacket"
@@ -11,16 +12,17 @@ import (
 )
 
 var (
-	device      = flag.String("device", "lo", "")
-	snapshotLen = flag.Int("snapshot_len", 2048, "")
-	BPFFilter   = flag.String("bpf_filter", "tcp and port 5432", "")
-	queries     = make(map[string]query)
+	device        = flag.String("device", "lo", "")
+	snapshotLen   = flag.Int("snapshot_len", 2048, "")
+	BPFFilter     = flag.String("bpf_filter", "tcp and port 5432", "")
+	queryFilter   = flag.String("query_filter", "", "not case-sensitive")
+	queries       = make(map[string]query)
+	slowQueryTime = flag.Int64("slow_query_time", 0, "in milliseconds")
 )
 
 type query struct {
-	query     string
-	isRequest bool
-	start     time.Time
+	query string
+	start time.Time
 }
 
 func main() {
@@ -69,7 +71,7 @@ func main() {
 
 			length := _len(playload[1:5])
 
-			if length > len(playload) {
+			if length > len(playload)-1 {
 
 				continue
 			}
@@ -80,10 +82,12 @@ func main() {
 
 				from := fmt.Sprintf("%s%d:%s%d\n", ipLayer.SrcIP, tcpLayer.SrcPort, ipLayer.DstIP, tcpLayer.DstPort)
 
-				queries[from] = query{
-					query:     string(playload[5:length]),
-					isRequest: true,
-					start:     packet.Metadata().Timestamp,
+				if *queryFilter == "" || bytes.Contains(bytes.ToLower(playload[5:length]), bytes.ToLower([]byte(*queryFilter))) {
+
+					queries[from] = query{
+						query: string(playload[5:length]),
+						start: packet.Metadata().Timestamp,
+					}
 				}
 
 			default:
@@ -92,8 +96,12 @@ func main() {
 
 				if query, found := queries[from]; found {
 
-					fmt.Println("-[ QUERY ]-")
-					fmt.Printf("Time:%f\n\n%s\n\n\n", packet.Metadata().Timestamp.Sub(query.start).Seconds(), query.query)
+					queryTime := packet.Metadata().Timestamp.Sub(query.start)
+
+					if *slowQueryTime == 0 || queryTime.Nanoseconds()/1000 > *slowQueryTime {
+
+						fmt.Printf("-[ QUERY %f s]-:\n%s\n\n\n", queryTime.Seconds(), query.query)
+					}
 
 					delete(queries, from)
 				}
