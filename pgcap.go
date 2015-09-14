@@ -13,11 +13,11 @@ import (
 
 var (
 	device        = flag.String("device", "lo", "")
-	snapshotLen   = flag.Int("snapshot_len", 2048, "")
 	BPFFilter     = flag.String("bpf_filter", "tcp and port 5432", "")
 	queryFilter   = flag.String("query_filter", "", "not case-sensitive")
-	queries       = make(map[string]query)
 	slowQueryTime = flag.Int64("slow_query_time", 0, "in milliseconds")
+	maxQueryLen   = flag.Int("max_query_len", 2048, "")
+	queries       = make(map[string]query)
 )
 
 type query struct {
@@ -29,7 +29,7 @@ func main() {
 
 	flag.Parse()
 
-	handle, err := pcap.OpenLive(*device, int32(*snapshotLen), true, time.Second)
+	handle, err := pcap.OpenLive(*device, int32(*maxQueryLen)+5, true, time.Second)
 
 	defer handle.Close()
 
