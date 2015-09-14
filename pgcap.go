@@ -90,6 +90,8 @@ func main() {
 					}
 				}
 
+			case 'B':
+				// params
 			default:
 
 				from := fmt.Sprintf("%s%d:%s%d\n", ipLayer.DstIP, tcpLayer.DstPort, ipLayer.SrcIP, tcpLayer.SrcPort)
